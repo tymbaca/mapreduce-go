@@ -32,12 +32,12 @@ func main() {
 		panic(err)
 	}
 
-	mr := mapreduce.New(countMap, countReduce, storage, 20, 9)
+	mr := mapreduce.New(countMap, countReduce, storage, 20, 20)
 
 	inCh := make(chan mapreduce.KeyVal)
 	go func() {
-		for i := range 10 {
-			text := gofakeit.Sentence(gofakeit.IntRange(100, 200))
+		for i := range 100 {
+			text := gofakeit.Sentence(gofakeit.IntRange(10, 20))
 			inCh <- mapreduce.KeyVal{Val: text}
 			slog.Warn("client: sent", "n", i)
 		}
