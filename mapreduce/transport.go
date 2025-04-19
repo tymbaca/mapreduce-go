@@ -34,7 +34,7 @@ func newTransport[T any](senders, receivers int) transport[T] {
 	peers := make(map[int]chan T)
 
 	for i := range receivers {
-		ch := make(chan T)
+		ch := make(chan T, 1)
 		peers[i] = ch
 	}
 
