@@ -2,8 +2,12 @@ package mapreduce
 
 import "context"
 
-type storage interface {
-	Get(ctx context.Context, key string) []string
-	GetKeys(ctx context.Context) []string
-	Append(ctx context.Context, key string, vals []string)
+// Storage used to persistently store data. Is used by redusers to
+// store incoming intermediate values before reducing them.
+//
+// Bucket corresponds to reducer's ID (so the their values won't mix)
+type Storage interface {
+	Get(ctx context.Context, bucket string, key string) []string
+	GetKeys(ctx context.Context, bucket string) []string
+	Append(ctx context.Context, bucket string, key string, vals []string)
 }
