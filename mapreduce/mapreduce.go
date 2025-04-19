@@ -18,7 +18,7 @@ type MapReduce struct {
 	partiotionFn PartitionFunc
 }
 
-func New(mapperCount, reducerCount int, mapFn MapFunc, reduceFn ReduceFunc, storage Storage) *MapReduce {
+func New(mapFn MapFunc, reduceFn ReduceFunc, storage Storage, mapperCount, reducerCount int) *MapReduce {
 	return &MapReduce{
 		mapFn:        mapFn,
 		mapperCount:  mapperCount,
@@ -26,7 +26,9 @@ func New(mapperCount, reducerCount int, mapFn MapFunc, reduceFn ReduceFunc, stor
 		reducerCount: reducerCount,
 		storage:      storage,
 		partiotionFn: func(key string) int {
-			return int(murmur3.Sum64([]byte(key))) % reducerCount
+			sum := murmur3.Sum64([]byte(key))
+			rem := sum % uint64(reducerCount)
+			return int(rem)
 		},
 	}
 }
@@ -43,7 +45,7 @@ func (mr *MapReduce) Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals,
 		forkMapper(ctx, mr.mapFn, mr.partiotionFn, id, inTrans, middleTrans)
 	}
 
-	for id := range mr.mapperCount {
+	for id := range mr.reducerCount {
 		forkReducer(ctx, mr.storage, mr.reduceFn, id, middleTrans, 0, outTrans)
 	}
 
@@ -66,6 +68,9 @@ loop:
 	// reduce phase
 	middleTrans.Close() // this close is a signal to all reducers for them to start reduce phase
 	go func() {
+		defer close(out)
+		defer outTrans.Close()
+
 		for {
 			kvs, open := outTrans.Recv(ctx, 0)
 			if !open {
@@ -74,7 +79,6 @@ loop:
 
 			select {
 			case <-ctx.Done():
-				outTrans.Close()
 				return
 			case out <- kvs:
 			}

@@ -1,31 +1,32 @@
-package bolt
+package bbolt
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
 	"go.etcd.io/bbolt"
 )
 
-type BoltStorage struct {
+type BboltStorage struct {
 	db *bbolt.DB
 }
 
-func New(path string) (*BoltStorage, error) {
+func New(path string) (*BboltStorage, error) {
 	db, err := bbolt.Open(path, 0o600, &bbolt.Options{Timeout: 30 * time.Second})
 	if err != nil {
 		return nil, fmt.Errorf("create bolt storage: %w", err)
 	}
 
-	return &BoltStorage{
+	return &BboltStorage{
 		db: db,
 	}, nil
 }
 
-func (s *BoltStorage) Get(ctx context.Context, bucket string, key string) []string {
+func (s *BboltStorage) Get(ctx context.Context, bucket string, key string) []string {
 	var vals []string
 
 	err := s.db.Update(func(tx *bbolt.Tx) error {
@@ -45,7 +46,7 @@ func (s *BoltStorage) Get(ctx context.Context, bucket string, key string) []stri
 	return vals
 }
 
-func (s *BoltStorage) GetKeys(ctx context.Context, bucket string) []string {
+func (s *BboltStorage) GetKeys(ctx context.Context, bucket string) []string {
 	var keys []string
 
 	err := s.db.Update(func(tx *bbolt.Tx) error {
@@ -68,11 +69,11 @@ func (s *BoltStorage) GetKeys(ctx context.Context, bucket string) []string {
 	return keys
 }
 
-func (s *BoltStorage) Append(ctx context.Context, bucket string, key string, newVals []string) {
+func (s *BboltStorage) Append(ctx context.Context, bucket string, key string, newVals []string) {
 	err := s.db.Update(func(tx *bbolt.Tx) error {
 		buck, err := tx.CreateBucketIfNotExists([]byte(bucket))
 		if err != nil {
-			return err
+			log.Panicf("key: '%s', newVals: %v, err: %s", key, newVals, err)
 		}
 
 		vals := get(buck, key)
@@ -80,12 +81,12 @@ func (s *BoltStorage) Append(ctx context.Context, bucket string, key string, new
 
 		data, err := json.Marshal(vals)
 		if err != nil {
-			panic(err)
+			log.Panicf("key: '%s', newVals: %v, err: %s", key, newVals, err)
 		}
 
 		err = buck.Put([]byte(key), data)
 		if err != nil {
-			panic(err)
+			log.Panicf("key: '%s', newVals: %v, err: %s", key, newVals, err)
 		}
 
 		return nil
@@ -98,12 +99,12 @@ func (s *BoltStorage) Append(ctx context.Context, bucket string, key string, new
 }
 
 // Close must be call to release database connection.
-func (s *BoltStorage) Close() error {
+func (s *BboltStorage) Close() error {
 	return s.db.Close()
 }
 
 // Destroy closes the database and removes the file.
-func (s *BoltStorage) Destroy() error {
+func (s *BboltStorage) Destroy() error {
 	path := s.db.Path()
 	_ = s.Close()
 	return os.Remove(path)

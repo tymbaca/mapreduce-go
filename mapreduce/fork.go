@@ -2,6 +2,7 @@ package mapreduce
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 )
 
@@ -28,15 +29,20 @@ type mapper struct {
 
 func (m *mapper) run(ctx context.Context) {
 	for {
+		slog.Info("mapper: receiving...", "id", m.id)
 		in, open := m.in.Recv(ctx, m.id)
 		if !open {
+			slog.Info("mapper: transport closed, starting reduce phase", "id", m.id)
 			return
 		}
+		slog.Info("mapper: receiving...", "id", m.id)
 
 		out := m.mapFn(ctx, in.Key, in.Val)
 
 		for _, kv := range out {
+			slog.Info("mapper: sending output...", "id", m.id, "kv", kv)
 			m.out.Send(ctx, m.partiotionFn(kv.Key), kv)
+			slog.Info("mapper: output sent", "id", m.id, "kv", kv)
 		}
 	}
 }
@@ -68,12 +74,15 @@ func (r *reducer) run(ctx context.Context) {
 	bucket := strconv.Itoa(r.id)
 
 	for {
+		slog.Info("reducer: receiving...", "id", r.id)
 		in, open := r.in.Recv(ctx, r.id)
 		if !open {
 			// mapping phase is over
 			// move on to reduce phase
+			slog.Info("reducer: transport closed, starting reduce phase", "id", r.id)
 			break
 		}
+		slog.Info("reducer: got input", "id", r.id)
 
 		r.storage.Append(ctx, bucket, in.Key, []string{in.Val})
 	}
@@ -83,6 +92,10 @@ func (r *reducer) run(ctx context.Context) {
 	for _, key := range keys {
 		vals := r.storage.Get(ctx, bucket, key)
 		reducedVals := r.reduceFn(ctx, key, vals)
-		r.out.Send(ctx, r.outID, KeyVals{Key: key, Vals: reducedVals})
+		output := KeyVals{Key: key, Vals: reducedVals}
+
+		slog.Info("reducer: sending output...", "id", r.id, "output", output)
+		r.out.Send(ctx, r.outID, output)
+		slog.Info("reducer: output sent", "id", r.id, "output", output)
 	}
 }
