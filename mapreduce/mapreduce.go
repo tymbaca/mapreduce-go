@@ -37,9 +37,9 @@ func New(mapFn MapFunc, reduceFn ReduceFunc, storage Storage, mapperCount, reduc
 func (mr *MapReduce) Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals, error) {
 	out := make(chan KeyVals)
 
-	inTrans := newTransport[KeyVal](1, mr.mapperCount)
-	middleTrans := newTransport[KeyVal](mr.mapperCount, mr.reducerCount)
-	outTrans := newTransport[KeyVals](mr.reducerCount, 1)
+	inTrans := newTransport[toMapperMsg](1, mr.mapperCount)
+	middleTrans := newTransport[toReducerMsg](mr.mapperCount, mr.reducerCount)
+	outTrans := newTransport[resultMsg](mr.reducerCount, 1)
 
 	for id := range mr.mapperCount {
 		forkMapper(ctx, mr.mapFn, mr.partiotionFn, id, inTrans, middleTrans)
@@ -62,7 +62,7 @@ loop:
 			}
 
 			id := rand.Intn(mr.mapperCount)
-			inTrans.Send(ctx, id, kv)
+			inTrans.Send(ctx, id, toMapperMsg{kv: kv})
 		}
 	}
 
@@ -79,7 +79,7 @@ loop:
 			select {
 			case <-ctx.Done():
 				return
-			case out <- kvs:
+			case out <- kvs.result:
 			}
 		}
 	}()

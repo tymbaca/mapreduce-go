@@ -4,6 +4,11 @@ import (
 	"context"
 	"log"
 	"sync"
+
+	"github.com/tymbaca/mapreduce-go/pkg/caller"
+	"github.com/tymbaca/mapreduce-go/pkg/tracer"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type transport[T any] interface {
@@ -50,6 +55,9 @@ func newTransport[T any](senders, receivers int) transport[T] {
 }
 
 func (t *chanTransport[T]) Recv(ctx context.Context, id int) (data T, open bool) {
+	ctx, span := tracer.Start(ctx, caller.Name(), trace.WithAttributes(attribute.Int("id", id)))
+	defer span.End()
+
 	ch, ok := t.peers[id]
 	if !ok {
 		log.Panicf("listen: no peer for id %d", id)
@@ -64,6 +72,9 @@ func (t *chanTransport[T]) Recv(ctx context.Context, id int) (data T, open bool)
 }
 
 func (t *chanTransport[T]) Send(ctx context.Context, id int, data T) {
+	ctx, span := tracer.Start(ctx, caller.Name(), trace.WithAttributes(attribute.Int("id", id)))
+	defer span.End()
+
 	ch, ok := t.peers[id]
 	if !ok {
 		log.Panicf("send: no peer for id %d", id)

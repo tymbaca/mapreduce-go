@@ -19,16 +19,13 @@ type KeyVals struct {
 }
 
 type toMapperMsg struct {
-	ctx context.Context
-	kv  KeyVal
+	kv KeyVal
 }
 
 type toReducerMsg struct {
-	ctx context.Context
-	kv  KeyVal
+	kv KeyVal
 }
 
 type resultMsg struct {
-	ctx context.Context
-	kvs KeyVals
+	result KeyVals
 }
