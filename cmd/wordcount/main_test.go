@@ -14,11 +14,14 @@ import (
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/tymbaca/mapreduce-go/mapreduce"
 	"github.com/tymbaca/mapreduce-go/mapreduce/storage/bbolt"
+	"github.com/tymbaca/mapreduce-go/pkg/tracer"
 )
 
 func TestWordCount(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	slog.SetDefault(logger)
+
+	tracer.Init("localhost:4318")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()

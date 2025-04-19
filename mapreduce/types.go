@@ -17,3 +17,18 @@ type KeyVals struct {
 	Key  string
 	Vals []string
 }
+
+type toMapperMsg struct {
+	ctx context.Context
+	kv  KeyVal
+}
+
+type toReducerMsg struct {
+	ctx context.Context
+	kv  KeyVal
+}
+
+type resultMsg struct {
+	ctx context.Context
+	kvs KeyVals
+}

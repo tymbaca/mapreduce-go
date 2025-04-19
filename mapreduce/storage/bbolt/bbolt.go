@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/tymbaca/mapreduce-go/pkg/caller"
+	"github.com/tymbaca/mapreduce-go/pkg/tracer"
 	"go.etcd.io/bbolt"
 )
 
@@ -27,6 +29,9 @@ func New(path string) (*BboltStorage, error) {
 }
 
 func (s *BboltStorage) Get(ctx context.Context, bucket string, key string) []string {
+	ctx, span := tracer.Start(ctx, caller.Name())
+	defer span.End()
+
 	var vals []string
 
 	err := s.db.Update(func(tx *bbolt.Tx) error {
@@ -47,6 +52,9 @@ func (s *BboltStorage) Get(ctx context.Context, bucket string, key string) []str
 }
 
 func (s *BboltStorage) GetKeys(ctx context.Context, bucket string) []string {
+	ctx, span := tracer.Start(ctx, caller.Name())
+	defer span.End()
+
 	var keys []string
 
 	err := s.db.Update(func(tx *bbolt.Tx) error {
@@ -70,6 +78,9 @@ func (s *BboltStorage) GetKeys(ctx context.Context, bucket string) []string {
 }
 
 func (s *BboltStorage) Append(ctx context.Context, bucket string, key string, newVals []string) {
+	ctx, span := tracer.Start(ctx, caller.Name())
+	defer span.End()
+
 	err := s.db.Update(func(tx *bbolt.Tx) error {
 		buck, err := tx.CreateBucketIfNotExists([]byte(bucket))
 		if err != nil {

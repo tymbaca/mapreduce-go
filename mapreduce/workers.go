@@ -4,9 +4,11 @@ import (
 	"context"
 	"log/slog"
 	"strconv"
+
+	"github.com/tymbaca/mapreduce-go/pkg/tracer"
 )
 
-func forkMapper(ctx context.Context, mapFn MapFunc, partiotionFn PartitionFunc, id int, in, out transport[KeyVal]) {
+func forkMapper(ctx context.Context, mapFn MapFunc, partiotionFn PartitionFunc, id int, in transport[toMapperMsg], out transport[toReducerMsg]) {
 	m := &mapper{
 		id:           id,
 		mapFn:        mapFn,
@@ -23,34 +25,39 @@ type mapper struct {
 	mapFn        MapFunc
 	partiotionFn PartitionFunc
 
-	in  transport[KeyVal]
-	out transport[KeyVal]
+	in  transport[toMapperMsg]
+	out transport[toReducerMsg]
 }
 
 func (m *mapper) run(ctx context.Context) {
 	defer m.out.Close()
 	for {
 		slog.Info("mapper: receiving...", "id", m.id)
+
 		in, open := m.in.Recv(ctx, m.id)
 		if !open {
 			slog.Info("mapper: transport closed, starting reduce phase", "id", m.id)
 			return
 		}
+
 		GlobalStats.MapIn.Add(1)
 		slog.Info("mapper: got input", "id", m.id)
 
-		out := m.mapFn(ctx, in.Key, in.Val)
+		ctx, span := tracer.Start(tracer.ApplySpan(ctx, in.ctx), "map")
+		// Map
+		out := m.mapFn(ctx, in.kv.Key, in.kv.Val)
+		span.End()
 
 		for _, kv := range out {
 			slog.Info("mapper: sending output...", "id", m.id, "kv", kv)
-			m.out.Send(ctx, m.partiotionFn(kv.Key), kv)
+			m.out.Send(ctx, m.partiotionFn(kv.Key), toReducerMsg{ctx: ctx, kv: kv})
 			GlobalStats.MapOut.Add(1)
 			slog.Info("mapper: output sent", "id", m.id, "kv", kv)
 		}
 	}
 }
 
-func forkReducer(ctx context.Context, storage Storage, reduceFn ReduceFunc, id int, in transport[KeyVal], outID int, out transport[KeyVals]) {
+func forkReducer(ctx context.Context, storage Storage, reduceFn ReduceFunc, id int, in transport[toReducerMsg], outID int, out transport[resultMsg]) {
 	r := &reducer{
 		id:       id,
 		reduceFn: reduceFn,
@@ -67,9 +74,9 @@ type reducer struct {
 	id       int
 	reduceFn ReduceFunc
 
-	in      transport[KeyVal]
+	in      transport[toReducerMsg]
 	storage Storage
-	out     transport[KeyVals]
+	out     transport[resultMsg]
 	outID   int
 }
 
@@ -90,7 +97,7 @@ func (r *reducer) run(ctx context.Context) {
 		GlobalStats.ReduceIn.Add(1)
 		slog.Info("reducer: got input", "id", r.id)
 
-		r.storage.Append(ctx, bucket, in.Key, []string{in.Val})
+		r.storage.Append(ctx, bucket, in.kv.Key, []string{in.kv.Val})
 	}
 
 	keys := r.storage.GetKeys(ctx, bucket)
@@ -101,7 +108,7 @@ func (r *reducer) run(ctx context.Context) {
 		output := KeyVals{Key: key, Vals: reducedVals}
 
 		slog.Info("reducer: sending output...", "id", r.id, "output", output)
-		r.out.Send(ctx, r.outID, output)
+		r.out.Send(ctx, r.outID, resultMsg{ctx: ctx})
 		GlobalStats.ReduceOut.Add(1)
 		slog.Info("reducer: output sent", "id", r.id, "output", output)
 	}
