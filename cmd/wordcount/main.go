@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/brianvoe/gofakeit/v7"
 	"github.com/tymbaca/mapreduce-go/mapreduce"
 	"github.com/tymbaca/mapreduce-go/mapreduce/storage/bbolt"
 	"github.com/tymbaca/mapreduce-go/pkg/tracer"
@@ -37,7 +36,7 @@ func main() {
 	inCh := make(chan mapreduce.KeyVal)
 	go func() {
 		for i := range 100 {
-			text := gofakeit.Sentence(gofakeit.IntRange(10, 20))
+			text := _lorem
 			inCh <- mapreduce.KeyVal{Val: text}
 			slog.Warn("client: sent", "n", i)
 		}
@@ -111,3 +110,10 @@ func countReduce(ctx context.Context, _ string, counts []string) []string {
 
 	return []string{strconv.Itoa(total)}
 }
+
+const _lorem = `Lorem ipsum dolor sit amet, consectetur adipiscing elit` /*, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua.Ut enim ad minim veniam,
+quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat
+nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia
+deserunt mollit anim id est laborum.*/
