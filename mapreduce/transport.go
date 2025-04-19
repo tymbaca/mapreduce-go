@@ -3,51 +3,53 @@ package mapreduce
 import (
 	"context"
 	"log"
+	"sync"
 )
 
 type transport[T any] interface {
 	// Recv receives the data sent to specified id. Blocks until someone
-	// calls Send with corresponding id, or if someone calls Close
+	// calls Send with corresponding id, or if all senders called Close.
 	Recv(ctx context.Context, id int) (T, bool)
 
 	// Send sends the data to specified id. Blocks until someone calls Recv
-	// with corresponding id, or if someone calls Close
+	// with corresponding id.
 	Send(ctx context.Context, id int, data T)
 
-	// Close cuts all currently blocked Recv and Send calls and prevends
-	// future their calls. It can be called zero, one or multiple times.
+	// Close is called by sender, whenever it sent all it's data. It must be
+	// called before exiting. Sender must not use transport after calling Close.
 	Close()
 }
 
 type chanTransport[T any] struct {
-	ctx   context.Context
-	close func()
-
-	peers map[int]chan T
+	sendersWg *sync.WaitGroup
+	peers     map[int]chan T
 }
 
-func newTransport[T any](peerCount int) transport[T] {
+func newTransport[T any](senders, receivers int) transport[T] {
 	peers := make(map[int]chan T)
 
-	for i := range peerCount {
+	for i := range receivers {
 		ch := make(chan T)
 		peers[i] = ch
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	sendersWg := &sync.WaitGroup{}
+	sendersWg.Add(senders)
+
+	go func() {
+		sendersWg.Wait()
+		for _, ch := range peers {
+			close(ch)
+		}
+	}()
 
 	return &chanTransport[T]{
-		ctx:   ctx,
-		close: cancel,
-		peers: peers,
+		sendersWg: sendersWg,
+		peers:     peers,
 	}
 }
 
 func (t *chanTransport[T]) Recv(ctx context.Context, id int) (data T, open bool) {
-	if t.ctx.Err() != nil {
-		return
-	}
-
 	ch, ok := t.peers[id]
 	if !ok {
 		log.Panicf("listen: no peer for id %d", id)
@@ -56,18 +58,12 @@ func (t *chanTransport[T]) Recv(ctx context.Context, id int) (data T, open bool)
 	select {
 	case <-ctx.Done():
 		return data, false
-	case <-t.ctx.Done():
-		return data, false
-	case data = <-ch:
-		return data, true
+	case data, open = <-ch:
+		return data, open
 	}
 }
 
 func (t *chanTransport[T]) Send(ctx context.Context, id int, data T) {
-	if t.ctx.Err() != nil {
-		return
-	}
-
 	ch, ok := t.peers[id]
 	if !ok {
 		log.Panicf("send: no peer for id %d", id)
@@ -75,11 +71,10 @@ func (t *chanTransport[T]) Send(ctx context.Context, id int, data T) {
 
 	select {
 	case <-ctx.Done():
-	case <-t.ctx.Done():
 	case ch <- data:
 	}
 }
 
 func (t *chanTransport[T]) Close() {
-	t.close()
+	t.sendersWg.Done()
 }

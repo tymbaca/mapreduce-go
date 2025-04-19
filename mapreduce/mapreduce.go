@@ -37,9 +37,9 @@ func New(mapFn MapFunc, reduceFn ReduceFunc, storage Storage, mapperCount, reduc
 func (mr *MapReduce) Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals, error) {
 	out := make(chan KeyVals)
 
-	inTrans := newTransport[KeyVal](mr.mapperCount)
-	middleTrans := newTransport[KeyVal](mr.reducerCount)
-	outTrans := newTransport[KeyVals](1)
+	inTrans := newTransport[KeyVal](1, mr.mapperCount)
+	middleTrans := newTransport[KeyVal](mr.mapperCount, mr.reducerCount)
+	outTrans := newTransport[KeyVals](mr.reducerCount, 1)
 
 	for id := range mr.mapperCount {
 		forkMapper(ctx, mr.mapFn, mr.partiotionFn, id, inTrans, middleTrans)
@@ -57,6 +57,7 @@ loop:
 			return nil, ctx.Err()
 		case kv, open := <-in:
 			if !open {
+				inTrans.Close()
 				break loop
 			}
 
@@ -66,15 +67,13 @@ loop:
 	}
 
 	// reduce phase
-	middleTrans.Close() // this close is a signal to all reducers for them to start reduce phase
 	go func() {
 		defer close(out)
-		defer outTrans.Close()
 
 		for {
 			kvs, open := outTrans.Recv(ctx, 0)
 			if !open {
-				panic("who closed outTrans?!")
+				return
 			}
 
 			select {

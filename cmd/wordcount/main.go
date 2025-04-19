@@ -27,7 +27,7 @@ func main() {
 	inCh := make(chan mapreduce.KeyVal)
 	go func() {
 		for range 10 {
-			text := gofakeit.Sentence(gofakeit.IntRange(100, 1000))
+			text := gofakeit.Sentence(gofakeit.IntRange(10, 20))
 			inCh <- mapreduce.KeyVal{Val: text}
 		}
 		close(inCh)

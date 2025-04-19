@@ -28,6 +28,7 @@ type mapper struct {
 }
 
 func (m *mapper) run(ctx context.Context) {
+	defer m.out.Close()
 	for {
 		slog.Info("mapper: receiving...", "id", m.id)
 		in, open := m.in.Recv(ctx, m.id)
@@ -35,7 +36,7 @@ func (m *mapper) run(ctx context.Context) {
 			slog.Info("mapper: transport closed, starting reduce phase", "id", m.id)
 			return
 		}
-		slog.Info("mapper: receiving...", "id", m.id)
+		slog.Info("mapper: got input", "id", m.id)
 
 		out := m.mapFn(ctx, in.Key, in.Val)
 
@@ -71,6 +72,8 @@ type reducer struct {
 }
 
 func (r *reducer) run(ctx context.Context) {
+	defer r.out.Close()
+
 	bucket := strconv.Itoa(r.id)
 
 	for {
