@@ -3,42 +3,57 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
+	"testing"
+	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/tymbaca/mapreduce-go/mapreduce"
 	"github.com/tymbaca/mapreduce-go/mapreduce/storage/bbolt"
 )
 
-func main() {
+func TestWordCount(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	slog.SetDefault(logger)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	storage, err := bbolt.New("tymbaca.db")
+	dbPath := "tymbaca.db"
+	os.Remove(dbPath)
+	storage, err := bbolt.New(dbPath)
 	if err != nil {
 		panic(err)
 	}
 
-	mr := mapreduce.New(countMap, countReduce, storage, 10, 5)
+	mr := mapreduce.New(countMap, countReduce, storage, 20, 9)
 
 	inCh := make(chan mapreduce.KeyVal)
 	go func() {
-		for range 10 {
-			text := gofakeit.Sentence(gofakeit.IntRange(10, 20))
+		for i := range 10 {
+			text := gofakeit.Sentence(gofakeit.IntRange(100, 200))
 			inCh <- mapreduce.KeyVal{Val: text}
+			slog.Warn("client: sent", "n", i)
 		}
 		close(inCh)
 	}()
+
+	start := time.Now()
 
 	outCh, err := mr.Run(ctx, inCh)
 	if err != nil {
 		panic(err)
 	}
 
+	os.Remove("tymbaca.out.log")
 	toLog("tymbaca.out.log", outCh)
+
+	fmt.Printf("time elapsed: %s\n", time.Since(start))
+	fmt.Printf("stats: %s\n", mapreduce.GlobalStats)
 }
 
 func toLog(path string, outCh <-chan mapreduce.KeyVals) {
@@ -56,6 +71,8 @@ func toLog(path string, outCh <-chan mapreduce.KeyVals) {
 }
 
 func countMap(ctx context.Context, _, value string) []mapreduce.KeyVal {
+	// time.Sleep(40 * time.Millisecond)
+
 	wordCount := make(map[string]int)
 
 	for _, word := range strings.Split(value, " ") {
@@ -78,6 +95,8 @@ func countMap(ctx context.Context, _, value string) []mapreduce.KeyVal {
 }
 
 func countReduce(ctx context.Context, _ string, counts []string) []string {
+	// time.Sleep(10 * time.Millisecond)
+
 	total := 0
 	for _, countStr := range counts {
 		count, err := strconv.Atoi(countStr)

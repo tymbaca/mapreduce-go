@@ -36,6 +36,7 @@ func (m *mapper) run(ctx context.Context) {
 			slog.Info("mapper: transport closed, starting reduce phase", "id", m.id)
 			return
 		}
+		GlobalStats.MapIn.Add(1)
 		slog.Info("mapper: got input", "id", m.id)
 
 		out := m.mapFn(ctx, in.Key, in.Val)
@@ -43,6 +44,7 @@ func (m *mapper) run(ctx context.Context) {
 		for _, kv := range out {
 			slog.Info("mapper: sending output...", "id", m.id, "kv", kv)
 			m.out.Send(ctx, m.partiotionFn(kv.Key), kv)
+			GlobalStats.MapOut.Add(1)
 			slog.Info("mapper: output sent", "id", m.id, "kv", kv)
 		}
 	}
@@ -85,6 +87,7 @@ func (r *reducer) run(ctx context.Context) {
 			slog.Info("reducer: transport closed, starting reduce phase", "id", r.id)
 			break
 		}
+		GlobalStats.ReduceIn.Add(1)
 		slog.Info("reducer: got input", "id", r.id)
 
 		r.storage.Append(ctx, bucket, in.Key, []string{in.Val})
@@ -99,6 +102,7 @@ func (r *reducer) run(ctx context.Context) {
 
 		slog.Info("reducer: sending output...", "id", r.id, "output", output)
 		r.out.Send(ctx, r.outID, output)
+		GlobalStats.ReduceOut.Add(1)
 		slog.Info("reducer: output sent", "id", r.id, "output", output)
 	}
 }
