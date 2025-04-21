@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/tymbaca/mapreduce-go/mapreduce"
-	"github.com/tymbaca/mapreduce-go/mapreduce/storage/bbolt"
+	"github.com/tymbaca/mapreduce-go/mapreduce/storage/inmemory"
 	"github.com/tymbaca/mapreduce-go/pkg/caller"
 	"github.com/tymbaca/mapreduce-go/pkg/tracer"
 )
@@ -25,12 +25,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	dbPath := "tymbaca.db"
-	os.Remove(dbPath)
-	storage, err := bbolt.New(dbPath)
-	if err != nil {
-		panic(err)
-	}
+	// dbPath := "tymbaca.db"
+	// os.Remove(dbPath)
+	// storage, err := bbolt.New(dbPath)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	storage := inmemory.New()
 
 	mr := mapreduce.New(countMap, countReduce, storage, 1, 1)
 

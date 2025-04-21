@@ -13,22 +13,22 @@ import (
 	"go.etcd.io/bbolt"
 )
 
-type BboltStorage struct {
+type Storage struct {
 	db *bbolt.DB
 }
 
-func New(path string) (*BboltStorage, error) {
+func New(path string) (*Storage, error) {
 	db, err := bbolt.Open(path, 0o600, &bbolt.Options{Timeout: 30 * time.Second})
 	if err != nil {
 		return nil, fmt.Errorf("create bolt storage: %w", err)
 	}
 
-	return &BboltStorage{
+	return &Storage{
 		db: db,
 	}, nil
 }
 
-func (s *BboltStorage) Get(ctx context.Context, bucket string, key string) []string {
+func (s *Storage) Get(ctx context.Context, bucket string, key string) []string {
 	ctx, span := tracer.Start(ctx, caller.Name())
 	defer span.End()
 
@@ -51,7 +51,7 @@ func (s *BboltStorage) Get(ctx context.Context, bucket string, key string) []str
 	return vals
 }
 
-func (s *BboltStorage) GetKeys(ctx context.Context, bucket string) []string {
+func (s *Storage) GetKeys(ctx context.Context, bucket string) []string {
 	ctx, span := tracer.Start(ctx, caller.Name())
 	defer span.End()
 
@@ -77,7 +77,7 @@ func (s *BboltStorage) GetKeys(ctx context.Context, bucket string) []string {
 	return keys
 }
 
-func (s *BboltStorage) Append(ctx context.Context, bucket string, key string, newVals []string) {
+func (s *Storage) Append(ctx context.Context, bucket string, key string, newVals []string) {
 	ctx, span := tracer.Start(ctx, caller.Name())
 	defer span.End()
 
@@ -110,12 +110,12 @@ func (s *BboltStorage) Append(ctx context.Context, bucket string, key string, ne
 }
 
 // Close must be call to release database connection.
-func (s *BboltStorage) Close() error {
+func (s *Storage) Close() error {
 	return s.db.Close()
 }
 
 // Destroy closes the database and removes the file.
-func (s *BboltStorage) Destroy() error {
+func (s *Storage) Destroy() error {
 	path := s.db.Path()
 	_ = s.Close()
 	return os.Remove(path)
