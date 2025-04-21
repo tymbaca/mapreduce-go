@@ -23,7 +23,7 @@ func New(mapFn MapFunc, reduceFn ReduceFunc, storage Storage, mapperCount, reduc
 **Запустить** через метод `(*MapReduce).Run`, сигнатура: 
 
 ```go
-func Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals, error)
+func (*MapReduce) Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals, error)
 ```
 
 Принимает и отдает канал, для потоковой обработки. В случае если входных
