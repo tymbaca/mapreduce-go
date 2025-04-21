@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/spaolacci/murmur3"
+	"golang.org/x/sync/errgroup"
 )
 
 type MapReduce struct {
@@ -50,6 +51,7 @@ func (mr *MapReduce) Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals,
 	}
 
 	// map phase
+	var wg errgroup.Group
 loop:
 	for {
 		select {
@@ -57,14 +59,18 @@ loop:
 			return nil, ctx.Err()
 		case kv, open := <-in:
 			if !open {
-				inTrans.Close()
 				break loop
 			}
 
-			id := rand.Intn(mr.mapperCount)
-			inTrans.Send(ctx, id, toMapperMsg{kv: kv})
+			wg.Go(func() error {
+				id := rand.Intn(mr.mapperCount)
+				inTrans.Send(ctx, id, toMapperMsg{kv: kv})
+				return nil
+			})
 		}
 	}
+	wg.Wait() // NOTE: do we need this?
+	inTrans.Close()
 
 	// reduce phase
 	go func() {
