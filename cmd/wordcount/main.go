@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	slog.SetDefault(logger)
 
 	tracer.Init("localhost:4318")
@@ -37,7 +37,7 @@ func main() {
 
 	inCh := make(chan mapreduce.KeyVal)
 	go func() {
-		for i := range 100 {
+		for i := range 1000 {
 			text := _lorem
 			inCh <- mapreduce.KeyVal{Val: text}
 			slog.Warn("client: sent", "n", i)
@@ -117,9 +117,9 @@ func countReduce(ctx context.Context, _ string, counts []string) []string {
 	return []string{strconv.Itoa(total)}
 }
 
-const _lorem = `Lorem ipsum dolor sit amet, consectetur adipiscing elit` /*, sed do
+const _lorem = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
 eiusmod tempor incididunt ut labore et dolore magna aliqua.Ut enim ad minim veniam,
 quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat
 nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia
-deserunt mollit anim id est laborum.*/
+deserunt mollit anim id est laborum` /*.*/
