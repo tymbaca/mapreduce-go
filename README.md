@@ -2,8 +2,7 @@
 
 Это учебная реализация MapReduce, согласно официальной статье
 [MapReduce: Simplified Data Processing on Large
-Clusters](https://research.google.com/archive/mapreduce-osdi04.pdf). Ключевые
-упрощения:
+Clusters](https://research.google.com/archive/mapreduce-osdi04.pdf).
 
 Реализация является локальной (что во многом невелируем весь смысл MarReduce'а). По сути представляет из себя
 библиотеку. Пример(-ы) использования приведен в папке `cmd`.
