@@ -14,7 +14,7 @@ Clusters](https://research.google.com/archive/mapreduce-osdi04.pdf).
 **Создать** инстант `MapReduce` через `mapreduce.New`. Сигнатурa: 
 
 ```go
-New(mapFn MapFunc, reduceFn ReduceFunc, storage Storage, mapperCount, reducerCount int) *MapReduce
+func New(mapFn MapFunc, reduceFn ReduceFunc, storage Storage, mapperCount, reducerCount int) *MapReduce
 ```
 
 Хранилище `Storage` используется редюсерами, для накопления промежуточных
@@ -23,7 +23,7 @@ New(mapFn MapFunc, reduceFn ReduceFunc, storage Storage, mapperCount, reducerCou
 **Запустить** через метод `(*MapReduce).Run`, сигнатура: 
 
 ```go
-Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals, error)
+func Run(ctx context.Context, in <-chan KeyVal) (<-chan KeyVals, error)
 ```
 
 Принимает и отдает канал, для потоковой обработки. В случае если входных
