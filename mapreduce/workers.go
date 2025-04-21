@@ -40,16 +40,13 @@ func (m *mapper) run(ctx context.Context) {
 		slog.Info("mapper: receiving...", "id", m.id)
 		in, open := m.in.Recv(ctx, m.id)
 		if !open {
-			slog.Info("mapper: transport closed, starting reduce phase", "id", m.id)
 			return
 		}
 
 		GlobalStats.MapIn.Add(1)
 		slog.Info("mapper: got input", "id", m.id)
 
-		ctx, span = tracer.Start(ctx, "map")
 		out := m.mapFn(ctx, in.kv.Key, in.kv.Val)
-		span.End()
 
 		var wg errgroup.Group
 		for _, kv := range out {
@@ -118,9 +115,7 @@ func (r *reducer) run(ctx context.Context) {
 	for _, key := range keys {
 		vals := r.storage.Get(ctx, bucket, key)
 
-		ctx, span := tracer.Start(ctx, "reduce")
 		reducedVals := r.reduceFn(ctx, key, vals)
-		span.End()
 
 		wg.Go(func() error {
 			output := KeyVals{Key: key, Vals: reducedVals}

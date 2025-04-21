@@ -12,11 +12,12 @@ import (
 
 	"github.com/tymbaca/mapreduce-go/mapreduce"
 	"github.com/tymbaca/mapreduce-go/mapreduce/storage/bbolt"
+	"github.com/tymbaca/mapreduce-go/pkg/caller"
 	"github.com/tymbaca/mapreduce-go/pkg/tracer"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	slog.SetDefault(logger)
 
 	tracer.Init("localhost:4318")
@@ -31,7 +32,7 @@ func main() {
 		panic(err)
 	}
 
-	mr := mapreduce.New(countMap, countReduce, storage, 20, 20)
+	mr := mapreduce.New(countMap, countReduce, storage, 1, 1)
 
 	inCh := make(chan mapreduce.KeyVal)
 	go func() {
@@ -55,6 +56,8 @@ func main() {
 
 	fmt.Printf("time elapsed: %s\n", time.Since(start))
 	fmt.Printf("stats: %s\n", mapreduce.GlobalStats)
+
+	<-ctx.Done()
 }
 
 func toLog(path string, outCh <-chan mapreduce.KeyVals) {
@@ -72,7 +75,8 @@ func toLog(path string, outCh <-chan mapreduce.KeyVals) {
 }
 
 func countMap(ctx context.Context, _, value string) []mapreduce.KeyVal {
-	// time.Sleep(40 * time.Millisecond)
+	ctx, span := tracer.Start(ctx, caller.Name())
+	defer span.End()
 
 	wordCount := make(map[string]int)
 
@@ -96,7 +100,8 @@ func countMap(ctx context.Context, _, value string) []mapreduce.KeyVal {
 }
 
 func countReduce(ctx context.Context, _ string, counts []string) []string {
-	// time.Sleep(10 * time.Millisecond)
+	ctx, span := tracer.Start(ctx, caller.Name())
+	defer span.End()
 
 	total := 0
 	for _, countStr := range counts {
